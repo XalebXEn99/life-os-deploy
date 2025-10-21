@@ -41,7 +41,7 @@ function AnimatedCounter({ value }: { value: number }) {
     const end = value;
     if (start === end) return;
 
-    let increment = end > start ? 1 : -1;
+    const increment = end > start ? 1 : -1;
     const timer = setInterval(() => {
       start += increment;
       setDisplay(start);
@@ -94,7 +94,7 @@ export default function DailyGoals() {
 
     if (data) {
       let streakCount = 0;
-      let currentDate = new Date();
+      const currentDate = new Date();
       for (let i = 0; i < data.length; i++) {
         const goalDate = new Date(data[i].created_at);
         const sameDay =

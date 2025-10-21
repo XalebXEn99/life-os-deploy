@@ -1,5 +1,5 @@
 "use client";
-import "./globals.css";
+import "src\app\globals.css";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
