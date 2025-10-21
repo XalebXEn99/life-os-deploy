@@ -30,24 +30,34 @@ export default function ConnectionTracker() {
     };
     fetchConnections();
   }, []);
+const addConnection = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !name.trim()) return;
 
-  const addConnection = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !name.trim()) return;
+  const { data, error } = await supabase
+    .from("connections")
+    .insert([{ name, last_contact: lastContact, reminder_interval: interval, user_id: user.id }])
+    .select()
+    .single();
 
-    const { data, error } = await supabase
-      .from("connections")
-      .insert([{ name, last_contact: lastContact, reminder_interval: interval, user_id: user.id }])
-      .select()
-      .single();
+  if (!error && data) {
+    // ✅ also log to life_events
+    await supabase.from("life_events").insert([
+      {
+        user_id: user.id,
+        space: "romance",
+        type: "connection",
+        details: { name, last_contact: lastContact, reminder_interval: interval },
+      },
+    ]);
 
-    if (!error && data) {
-      setConnections([data, ...connections]);
-      setName("");
-      setLastContact("");
-      setInterval(7);
-    }
-  };
+    setConnections([data, ...connections]);
+    setName("");
+    setLastContact("");
+    setInterval(7);
+  }
+};
+
 
   const daysSince = (date: string | null) => {
     if (!date) return "Never";

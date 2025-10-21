@@ -50,36 +50,52 @@ export default function StudyTimer() {
     }
   };
 
-  // Handle session end
-  const handleSessionEnd = async () => {
-    setIsRunning(false);
+// Handle session end
+const handleSessionEnd = async () => {
+  setIsRunning(false);
 
-    // Log session to Supabase
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from("study_sessions").insert([
-        {
-          user_id: user.id,
-          type: isStudy ? "study" : "break",
+  // Log session to Supabase
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    // Insert into study_sessions
+    await supabase.from("study_sessions").insert([
+      {
+        user_id: user.id,
+        type: isStudy ? "study" : "break",
+        duration: isStudy ? studyLength : breakLength,
+        ended_at: new Date().toISOString(),
+      },
+    ]);
+
+    // ✅ Also insert into life_events
+    await supabase.from("life_events").insert([
+      {
+        user_id: user.id,
+        space: "school",
+        type: "study_session",
+        details: {
+          sessionType: isStudy ? "study" : "break",
           duration: isStudy ? studyLength : breakLength,
-          ended_at: new Date().toISOString(),
         },
-      ]);
-      fetchHistory(); // refresh history after logging
-    }
+      },
+    ]);
 
-    // Notify
-    notify(isStudy ? "Study session complete! Time for a break." : "Break over! Back to studying.");
+    fetchHistory(); // refresh history after logging
+  }
 
-    // Switch to next session
-    if (isStudy) {
-      setIsStudy(false);
-      setTimeLeft(breakLength * 60);
-    } else {
-      setIsStudy(true);
-      setTimeLeft(studyLength * 60);
-    }
-  };
+  // Notify
+  notify(isStudy ? "Study session complete! Time for a break." : "Break over! Back to studying.");
+
+  // Switch to next session
+  if (isStudy) {
+    setIsStudy(false);
+    setTimeLeft(breakLength * 60);
+  } else {
+    setIsStudy(true);
+    setTimeLeft(studyLength * 60);
+  }
+};
+
 
   const toggleTimer = () => setIsRunning(!isRunning);
   const resetTimer = () => {

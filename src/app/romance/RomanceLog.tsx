@@ -31,23 +31,33 @@ export default function RomanceLog() {
     fetchEntries();
   }, []);
 
-  const addEntry = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !title.trim()) return;
+const addEntry = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !title.trim()) return;
 
-    const { data, error } = await supabase
-      .from("romance_entries")
-      .insert([{ title, notes, date, user_id: user.id }])
-      .select()
-      .single();
+  const { data, error } = await supabase
+    .from("romance_entries")
+    .insert([{ title, notes, date, user_id: user.id }])
+    .select()
+    .single();
 
-    if (!error && data) {
-      setEntries([data, ...entries]);
-      setTitle("");
-      setNotes("");
-      setDate("");
-    }
-  };
+  if (!error && data) {
+    // ✅ also log to life_events
+    await supabase.from("life_events").insert([
+      {
+        user_id: user.id,
+        space: "romance",
+        type: "date",
+        details: { title, notes, date },
+      },
+    ]);
+
+    setEntries([data, ...entries]);
+    setTitle("");
+    setNotes("");
+    setDate("");
+  }
+};
 
   return (
     <div className="mt-6">

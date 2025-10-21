@@ -1,72 +1,165 @@
 "use client";
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../../lib/supabaseClient";
+import { Line, Doughnut } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  ArcElement,
+} from "chart.js";
 
-type Task = { id: string; done: boolean };
-type Session = { id: string; type: string; duration: number; ended_at: string };
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  ArcElement
+);
+
+type LifeEvent = {
+  id: string;
+  space: string;
+  type: string;
+  details: any;
+  created_at: string;
+};
 
 export default function StatsDashboard() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<LifeEvent[]>([]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    const fetchEvents = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+      if (!user) return;
 
-      // Fetch tasks
-      const { data: taskData } = await supabase
-        .from("tasks")
-        .select("id, done")
-        .eq("user_id", user.id);
+      const { data } = await supabase
+        .from("life_events")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
 
-      // Fetch study sessions
-      const { data: sessionData } = await supabase
-        .from("study_sessions")
-        .select("id, type, duration, ended_at")
-        .eq("user_id", user.id);
-
-      if (taskData) setTasks(taskData);
-      if (sessionData) setSessions(sessionData);
-
-      setLoading(false);
+      if (data) setEvents(data);
     };
-
-    fetchData();
+    fetchEvents();
   }, []);
 
-  if (loading) return <p className="text-silver-400">Loading stats...</p>;
+  // --- Aggregations ---
+  const studySessions = events.filter((e) => e.type === "study_session").length;
+  const workouts = events.filter((e) => e.type === "workout").length;
+  const moods = events.filter((e) => e.type === "mood_log");
+  const dates = events.filter((e) => e.type === "date").length;
+  const mediaCompleted = events.filter(
+    (e) => e.type === "media" && e.details?.status === "completed"
+  ).length;
 
-  const completedTasks = tasks.filter((t) => t.done).length;
-  const totalTasks = tasks.length;
-  const totalStudyMinutes = sessions
-    .filter((s) => s.type === "study")
-    .reduce((sum, s) => sum + s.duration, 0);
+  // --- Study Chart Data ---
+  const studyData = events
+    .filter((e) => e.type === "study_session")
+    .reduce((acc: Record<string, number>, e) => {
+      const day = new Date(e.created_at).toLocaleDateString();
+      acc[day] = (acc[day] || 0) + (e.details?.duration || 0);
+      return acc;
+    }, {});
+
+  const studyChart = {
+    labels: Object.keys(studyData),
+    datasets: [
+      {
+        label: "Study Minutes",
+        data: Object.values(studyData),
+        borderColor: "rgba(34,197,94,1)",
+        backgroundColor: "rgba(34,197,94,0.3)",
+        tension: 0.3,
+      },
+    ],
+  };
+
+  // --- Mood Trend Chart ---
+  const moodData = moods.map((m) => ({
+    x: new Date(m.created_at).toLocaleDateString(),
+    y: m.details?.mood_score || 0, // assumes moods stored as numeric scale
+  }));
+
+  const moodChart = {
+    labels: moodData.map((d) => d.x),
+    datasets: [
+      {
+        label: "Mood Trend",
+        data: moodData.map((d) => d.y),
+        borderColor: "rgba(59,130,246,1)",
+        backgroundColor: "rgba(59,130,246,0.3)",
+        tension: 0.3,
+      },
+    ],
+  };
+
+  // --- Donut Chart (events by space) ---
+  const spaceCounts = events.reduce((acc: Record<string, number>, e) => {
+    acc[e.space] = (acc[e.space] || 0) + 1;
+    return acc;
+  }, {});
+
+  const donutChart = {
+    labels: Object.keys(spaceCounts),
+    datasets: [
+      {
+        data: Object.values(spaceCounts),
+        backgroundColor: [
+          "#34d399", // green
+          "#60a5fa", // blue
+          "#f472b6", // pink
+          "#facc15", // yellow
+          "#a78bfa", // purple
+          "#f87171", // red
+        ],
+      },
+    ],
+  };
 
   return (
-    <div className="mt-6 space-y-6">
-      <div className="bg-silver-100 text-slate-900 p-4 rounded">
-        <h2 className="font-semibold">Tasks</h2>
-        <p>
-          {completedTasks} / {totalTasks} completed
-        </p>
+    <div className="space-y-8">
+      {/* Totals */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <StatCard title="Study Sessions" value={studySessions} />
+        <StatCard title="Workouts" value={workouts} />
+        <StatCard title="Moods Logged" value={moods.length} />
+        <StatCard title="Dates" value={dates} />
+        <StatCard title="Media Completed" value={mediaCompleted} />
       </div>
 
-      <div className="bg-silver-100 text-slate-900 p-4 rounded">
-        <h2 className="font-semibold">Study Time</h2>
-        <p>{totalStudyMinutes} minutes logged</p>
-      </div>
+      {/* Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-silver-100 text-slate-900 p-4 rounded">
+          <h2 className="font-semibold mb-2">📖 Study Trend</h2>
+          <Line data={studyChart} />
+        </div>
 
-      {/* Placeholder for charts */}
-      <div className="bg-silver-100 text-slate-900 p-4 rounded">
-        <h2 className="font-semibold">Charts</h2>
-        <p>Coming soon: visual breakdown of study sessions and tasks.</p>
+        <div className="bg-silver-100 text-slate-900 p-4 rounded">
+          <h2 className="font-semibold mb-2">🧠 Mood Trend</h2>
+          <Line data={moodChart} />
+        </div>
+
+        <div className="bg-silver-100 text-slate-900 p-4 rounded md:col-span-2">
+          <h2 className="font-semibold mb-2">📊 Activity by Space</h2>
+          <Doughnut data={donutChart} />
+        </div>
       </div>
+    </div>
+  );
+}
+
+function StatCard({ title, value }: { title: string; value: number }) {
+  return (
+    <div className="bg-silver-100 text-slate-900 p-4 rounded text-center shadow-sm">
+      <h3 className="font-semibold">{title}</h3>
+      <p className="text-2xl">{value}</p>
     </div>
   );
 }
