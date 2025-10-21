@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postinstall": "npm install autoprefixer postcss",
     "start": "next start",
     "lint": "eslint"
   },
