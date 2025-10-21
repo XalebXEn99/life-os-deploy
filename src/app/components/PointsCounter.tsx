@@ -6,41 +6,38 @@ import Link from "next/link";
 export default function PointsCounter() {
   const [points, setPoints] = useState(0);
 
-  useEffect(() => {
-    const fetchPoints = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+useEffect(() => {
+  const fetchPoints = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-      const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await supabase
+      .from("user_points")
+      .select("balance")
+      .eq("user_id", user.id)
+      .single();
 
-      const { data } = await supabase
-        .from("daily_goals")
-        .select("reward_points, completed, created_at")
-        .eq("user_id", user.id)
-        .eq("created_at", today)
-        .eq("completed", true);
+    if (!error && data) setPoints(data.balance);
+  };
 
-      if (data) {
-        const total = data.reduce((sum, g) => sum + g.reward_points, 0);
-        setPoints(total);
-      }
-    };
+  fetchPoints();
 
-    fetchPoints();
+  // 👇 subscribe to user_points, not daily_goals
+  const channel = supabase
+    .channel("points-balance-updates")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "user_points" },
+      () => fetchPoints()
+    )
+    .subscribe();
 
-    const channel = supabase
-      .channel("points-updates")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "daily_goals" },
-        () => fetchPoints()
-      )
-      .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+
 
   return (
     <Link href="/rewards">
@@ -51,3 +48,4 @@ export default function PointsCounter() {
     </Link>
   );
 }
+

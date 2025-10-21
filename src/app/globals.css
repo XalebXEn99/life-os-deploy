@@ -5,9 +5,9 @@
   --background: #ffffff;
   --foreground: #171717;
 
-  --silver-1: #e6e8eb;
-  --silver-2: #c8ccd0;
-  --silver-3: #9aa1a8;
+  --silver-1: #ffffff;
+  --silver-2: #ffffff;
+  --silver-3: #ffffff;
 
   /* Accent palette */
   --green: #22c55e;
@@ -45,6 +45,9 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   transition: background 0.3s ease, color 0.3s ease;
+}
+html {
+  scroll-behavior: smooth;
 }
 
 /* Utility: use accent color for links/buttons */
