@@ -1,7 +1,7 @@
 // app/layout.tsx
 "use client";
 
-import "../globals.css";
+import "./globals.css";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
