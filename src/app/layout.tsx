@@ -1,4 +1,6 @@
+// app/layout.tsx
 "use client";
+
 import "./globals.css";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -90,29 +92,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </button>
             </div>
 
-{/* Center: animated inline nav */}
-<div
-  className={`flex items-center gap-4 transition-all duration-500 ${
-    expanded ? "opacity-100" : "opacity-0 pointer-events-none"
-  }`}
->
-  {spaces.map((s, i) => (
-    <Link
-      key={s.name}
-      href={s.path}
-      className={`flex items-center gap-1 text-sm transform transition-all duration-300 ${
-        expanded
-          ? `opacity-100 translate-x-0 delay-[${i * 75}ms]`
-          : "opacity-0 -translate-x-4"
-      }`}
-      onClick={() => setExpanded(false)}
-    >
-      <s.icon className="w-4 h-4 shrink-0" />
-      <span>{s.name}</span>
-    </Link>
-  ))}
-</div>
-
+            {/* Center: animated inline nav */}
+            <div
+              className={`flex items-center gap-4 transition-all duration-500 ${
+                expanded ? "opacity-100" : "opacity-0 pointer-events-none"
+              }`}
+            >
+              {spaces.map((s, i) => (
+                <Link
+                  key={s.name}
+                  href={s.path}
+                  className={`flex items-center gap-1 text-sm transform transition-all duration-300 ${
+                    expanded
+                      ? `opacity-100 translate-x-0 delay-[${i * 75}ms]`
+                      : "opacity-0 -translate-x-4"
+                  }`}
+                  onClick={() => setExpanded(false)}
+                >
+                  <s.icon className="w-4 h-4 shrink-0" />
+                  <span>{s.name}</span>
+                </Link>
+              ))}
+            </div>
 
             {/* Right: points + controls */}
             <div className="flex items-center gap-4">
@@ -138,7 +139,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </nav>
 
-          {/* Mobile Nav (unchanged) */}
+          {/* Mobile Nav */}
           <div className="flex md:hidden items-center justify-between px-4 py-3">
             <button
               onClick={scrollToTop}
@@ -178,7 +179,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
 
-          {/* Mobile Dropdown (unchanged) */}
+          {/* Mobile Dropdown */}
           {expanded && (
             <div className="md:hidden bg-white dark:bg-slate-800 border-t border-silver-200 dark:border-silver-500/20 px-4 py-3 space-y-2">
               {spaces.map((s) => (
