@@ -6,18 +6,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import PointsCounter from "./components/PointsCounter";
 import type { User } from "@supabase/supabase-js";
-import {
-  HomeIcon,
-  PencilSquareIcon,
-  AcademicCapIcon,
-  HeartIcon,
-  UserCircleIcon,
-  Cog6ToothIcon,
-  ChartBarIcon,
-  StarIcon,
-  FilmIcon,
-  BoltIcon,
-} from "@heroicons/react/24/outline";
+
+// Simple fallback icons if Heroicons fail
+const FallbackIcon = () => <span>📄</span>;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -25,60 +16,46 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [darkMode, setDarkMode] = useState(false);
   const [themeColor, setThemeColor] = useState("green");
   const [mounted, setMounted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fix: Ensure component is mounted to avoid hydration issues
-  useEffect(() => {
-    setMounted(true);
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    const fetchTheme = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("user_settings")
-        .select("theme_color")
-        .eq("user_id", user.id)
-        .single();
-      if (data?.theme_color) setThemeColor(data.theme_color);
-    };
-    fetchTheme();
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleLogout = async () => await supabase.auth.signOut();
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
-
-  // Fix: Close mobile menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (navExpanded && !(event.target as Element).closest('header')) {
-        setNavExpanded(false);
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [navExpanded]);
-
+  // Simple spaces without Heroicons
   const spaces = [
-    { name: "Dashboard", path: "/", icon: HomeIcon },
-    { name: "Plan", path: "/home", icon: PencilSquareIcon },
-    { name: "Learn", path: "/school", icon: AcademicCapIcon },
-    { name: "Romance", path: "/romance", icon: HeartIcon },
-    { name: "Mental", path: "/mental", icon: UserCircleIcon },
-    { name: "Physical", path: "/physical", icon: BoltIcon },
-    { name: "Entertainment", path: "/entertainment", icon: FilmIcon },
-    { name: "Daily Goals", path: "/goals", icon: ChartBarIcon },
-    { name: "Rewards Shop", path: "/rewards", icon: StarIcon },
-    { name: "Settings", path: "/settings", icon: Cog6ToothIcon },
+    { name: "Dashboard", path: "/", icon: "🏠" },
+    { name: "Plan", path: "/home", icon: "📝" },
+    { name: "Learn", path: "/school", icon: "📚" },
+    { name: "Romance", path: "/romance", icon: "💖" },
+    { name: "Mental", path: "/mental", icon: "🧠" },
+    { name: "Physical", path: "/physical", icon: "💪" },
+    { name: "Entertainment", path: "/entertainment", icon: "🎮" },
+    { name: "Daily Goals", path: "/goals", icon: "🎯" },
+    { name: "Rewards Shop", path: "/rewards", icon: "🏆" },
+    { name: "Settings", path: "/settings", icon: "⚙️" },
   ];
 
-  // Fix: Prevent hydration issues by not rendering until mounted
+  useEffect(() => {
+    try {
+      setMounted(true);
+      // Your existing auth logic
+      supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    } catch (err) {
+      setError('Failed to initialize app');
+      console.error('Initialization error:', err);
+    }
+  }, []);
+
+  if (error) {
+    return (
+      <html lang="en">
+        <body className="bg-silver-50 dark:bg-slate-900">
+          <div className="flex items-center justify-center min-h-screen flex-col gap-4 p-4">
+            <h1 className="text-xl font-bold text-red-600">Error: {error}</h1>
+            <p className="text-gray-600">Check the console for details</p>
+          </div>
+        </body>
+      </html>
+    );
+  }
+
   if (!mounted) {
     return (
       <html lang="en">
@@ -92,19 +69,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <html lang="en" className={`${darkMode ? "dark" : ""} theme-${themeColor}`}>
+    <html lang="en" className={`${darkMode ? "dark" : ""}`}>
       <body className="bg-silver-50 text-slate-900 dark:bg-slate-900 dark:text-white transition-colors">
-        {/* ===== Header ===== */}
+        {/* Debug header - always visible */}
         <header className="sticky top-0 z-50 bg-white/70 dark:bg-slate-800/70 backdrop-blur border-b border-silver-200 dark:border-silver-500/20">
-
-          {/* === Desktop Nav === */}
+          
+          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center justify-between px-6 py-3">
-            {/* Left: Brand + toggle */}
             <div className="flex items-center gap-2">
-              <button
-                onClick={scrollToTop}
-                className="text-xl font-bold px-2 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition"
-              >
+              <button className="text-xl font-bold px-2 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition">
                 Life OS
               </button>
               <button
@@ -115,62 +88,49 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </button>
             </div>
 
-            {/* Center: expanding menu - FIXED: Simple toggle with proper width handling */}
+            {/* Center menu */}
             <div className={`flex items-center gap-3 transition-all duration-300 ${navExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
               {navExpanded && spaces.map((s) => (
                 <Link
                   key={s.name}
                   href={s.path}
                   className="text-sm px-3 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
-                  onClick={() => setNavExpanded(false)}
                 >
                   {s.name}
                 </Link>
               ))}
             </div>
 
-            {/* Right: points + darkmode + login/logout */}
+            {/* Right side */}
             <div className="flex items-center gap-4">
               <PointsCounter />
               <button
                 onClick={() => setDarkMode(!darkMode)}
-                className="px-3 py-1 rounded bg-blur dark:bg-blur text-sm hover:bg-silver-300 dark:hover:bg-slate-600 transition-colors"
+                className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-sm hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
               >
                 {darkMode ? "☀️ Light" : "🌙 Dark"}
               </button>
               {user ? (
-                <button 
-                  onClick={handleLogout} 
-                  className="px-3 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
-                >
+                <button className="px-3 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors">
                   Logout
                 </button>
               ) : (
-                <Link 
-                  href="/login" 
-                  className="px-3 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition-colors"
-                >
+                <Link href="/login" className="px-3 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition-colors">
                   Login
                 </Link>
               )}
             </div>
           </nav>
 
-          {/* === Mobile Nav (hamburger header) === */}
+          {/* Mobile Nav */}
           <div className="flex md:hidden items-center justify-between px-4 py-3">
-            <button
-              onClick={scrollToTop}
-              className="text-lg font-bold px-2 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition"
-            >
+            <button className="text-lg font-bold px-2 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition">
               Life OS
             </button>
             <div className="flex items-center gap-3">
               <PointsCounter />
               <button 
-                onClick={(e) => {
-                  e.stopPropagation(); // Fix: Prevent event bubbling
-                  setNavExpanded((prev) => !prev);
-                }} 
+                onClick={() => setNavExpanded(!navExpanded)}
                 className="focus:outline-none p-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -184,65 +144,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
 
-          {/* === Mobile Dropdown - FIXED === */}
+          {/* Mobile Dropdown */}
           {navExpanded && (
-            <div
-              className="md:hidden absolute top-full left-0 w-full z-50 bg-white/95 dark:bg-slate-800/95 backdrop-blur border-t border-silver-200 dark:border-silver-500/20"
-              onClick={() => setNavExpanded(false)} // Fix: Close when clicking anywhere in dropdown
-            >
+            <div className="md:hidden absolute top-full left-0 w-full z-50 bg-white/95 dark:bg-slate-800/95 backdrop-blur border-t border-silver-200 dark:border-silver-500/20">
               <div className="flex flex-col px-2 py-3 space-y-1">
-                {spaces.map((s) => {
-                  const Icon = s.icon;
-                  return (
-                    <Link
-                      key={s.name}
-                      href={s.path}
-                      className="flex items-center gap-2 px-3 py-2 rounded hover:bg-silver-100 dark:hover:bg-slate-700 transition-colors text-sm"
-                      onClick={(e) => e.stopPropagation()} // Fix: Prevent closing when clicking link
-                    >
-                      <Icon className="w-4 h-4 shrink-0" />
-                      <span>{s.name}</span>
-                    </Link>
-                  );
-                })}
-
-                <div className="flex items-center justify-between pt-2 border-t border-silver-200 dark:border-silver-500/20">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDarkMode(!darkMode);
-                    }}
-                    className="px-3 py-1 rounded bg-accent text-white text-sm hover:bg-accent-hover transition-colors"
+                {spaces.map((s) => (
+                  <Link
+                    key={s.name}
+                    href={s.path}
+                    className="flex items-center gap-2 px-3 py-2 rounded hover:bg-silver-100 dark:hover:bg-slate-700 transition-colors text-sm"
+                    onClick={() => setNavExpanded(false)}
                   >
-                    {darkMode ? "☀️ Light" : "🌙 Dark"}
-                  </button>
-                  {user ? (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleLogout();
-                      }} 
-                      className="px-3 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
-                    >
-                      Logout
-                    </button>
-                  ) : (
-                    <Link
-                      href="/login"
-                      className="px-3 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition-colors text-sm"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      Login
-                    </Link>
-                  )}
-                </div>
+                    <span className="text-lg">{s.icon}</span>
+                    <span>{s.name}</span>
+                  </Link>
+                ))}
               </div>
             </div>
           )}
         </header>
 
-        {/* ===== Main Content ===== */}
-        <main className="max-w-5xl mx-auto pb-16">{children}</main>
+        <main className="max-w-5xl mx-auto pb-16 pt-4">{children}</main>
       </body>
     </html>
   );
