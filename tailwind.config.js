@@ -26,7 +26,7 @@ module.exports = {
     },
   },
   safelist: [
-    // keep dropdown sizing/spacing classes
+    // existing safelist
     "w-48",
     "w-56",
     "space-y-1",
@@ -34,6 +34,24 @@ module.exports = {
     "text-sm",
     "rounded-md",
     "shadow-lg",
+
+    // 👇 added for mobile dropdown animation and visibility
+    "max-h-[500px]",
+    "max-h-0",
+    "opacity-0",
+    "opacity-100",
+    "pointer-events-none",
+    "pointer-events-auto",
+    "z-40",
+    "z-50",
+    "bg-white/80",
+    "dark:bg-slate-800/80",
+    "border-t",
+    "border-silver-200",
+    "dark:border-silver-500/20",
+    "backdrop-blur",
+    "transition-all",
+    "duration-300",
   ],
   plugins: [],
 };

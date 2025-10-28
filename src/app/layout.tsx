@@ -24,10 +24,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [navExpanded, setNavExpanded] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [themeColor, setThemeColor] = useState("green");
+  const [mounted, setMounted] = useState(false);
 
+  // Fix: Ensure component is mounted to avoid hydration issues
   useEffect(() => {
+    setMounted(true);
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
@@ -43,11 +47,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     };
     fetchTheme();
 
-    return () => listener.subscription.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleLogout = async () => await supabase.auth.signOut();
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
+  // Fix: Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (navExpanded && !(event.target as Element).closest('header')) {
+        setNavExpanded(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [navExpanded]);
 
   const spaces = [
     { name: "Dashboard", path: "/", icon: HomeIcon },
@@ -62,14 +78,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     { name: "Settings", path: "/settings", icon: Cog6ToothIcon },
   ];
 
+  // Fix: Prevent hydration issues by not rendering until mounted
+  if (!mounted) {
+    return (
+      <html lang="en">
+        <body className="bg-silver-50 dark:bg-slate-900">
+          <div className="flex items-center justify-center min-h-screen">
+            Loading...
+          </div>
+        </body>
+      </html>
+    );
+  }
+
   return (
     <html lang="en" className={`${darkMode ? "dark" : ""} theme-${themeColor}`}>
       <body className="bg-silver-50 text-slate-900 dark:bg-slate-900 dark:text-white transition-colors">
-        {/* Header */}
+        {/* ===== Header ===== */}
         <header className="sticky top-0 z-50 bg-white/70 dark:bg-slate-800/70 backdrop-blur border-b border-silver-200 dark:border-silver-500/20">
-          {/* Desktop nav */}
+
+          {/* === Desktop Nav === */}
           <nav className="hidden md:flex items-center justify-between px-6 py-3">
-            {/* Left: brand + toggle */}
+            {/* Left: Brand + toggle */}
             <div className="flex items-center gap-2">
               <button
                 onClick={scrollToTop}
@@ -81,20 +111,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 onClick={() => setNavExpanded(!navExpanded)}
                 className="px-2 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition"
               >
-                {navExpanded ? "◀" : "▶"}
+                {navExpanded ? "◀ Menu" : "▶ Menu"}
               </button>
             </div>
 
-            {/* Center: menu text only */}
-            <div
-              className={`flex items-center gap-3 transition-all duration-300 overflow-hidden`}
-              style={{ maxWidth: navExpanded ? `${spaces.length * 100}px` : "0" }}
-            >
-              {spaces.map((s) => (
+            {/* Center: expanding menu - FIXED: Simple toggle with proper width handling */}
+            <div className={`flex items-center gap-3 transition-all duration-300 ${navExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
+              {navExpanded && spaces.map((s) => (
                 <Link
                   key={s.name}
                   href={s.path}
-                  className={`text-sm px-2 py-1 rounded hover:text-accent transition-colors whitespace-nowrap`}
+                  className="text-sm px-3 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
                   onClick={() => setNavExpanded(false)}
                 >
                   {s.name}
@@ -102,28 +129,34 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               ))}
             </div>
 
-            {/* Right: points + controls */}
+            {/* Right: points + darkmode + login/logout */}
             <div className="flex items-center gap-4">
               <PointsCounter />
               <button
                 onClick={() => setDarkMode(!darkMode)}
-                className="px-2 py-1 rounded bg-blur dark:bg-blur text-sm"
+                className="px-3 py-1 rounded bg-blur dark:bg-blur text-sm hover:bg-silver-300 dark:hover:bg-slate-600 transition-colors"
               >
                 {darkMode ? "☀️ Light" : "🌙 Dark"}
               </button>
               {user ? (
-                <button onClick={handleLogout} className="hover:text-red-500 transition">
+                <button 
+                  onClick={handleLogout} 
+                  className="px-3 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
+                >
                   Logout
                 </button>
               ) : (
-                <Link href="/login" className="hover:underline">
+                <Link 
+                  href="/login" 
+                  className="px-3 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition-colors"
+                >
                   Login
                 </Link>
               )}
             </div>
           </nav>
 
-          {/* Mobile nav */}
+          {/* === Mobile Nav (hamburger header) === */}
           <div className="flex md:hidden items-center justify-between px-4 py-3">
             <button
               onClick={scrollToTop}
@@ -133,7 +166,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </button>
             <div className="flex items-center gap-3">
               <PointsCounter />
-              <button onClick={() => setNavExpanded(!navExpanded)} className="focus:outline-none">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation(); // Fix: Prevent event bubbling
+                  setNavExpanded((prev) => !prev);
+                }} 
+                className="focus:outline-none p-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition-colors"
+              >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {navExpanded ? (
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -145,56 +184,64 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
 
-{/* Mobile dropdown */}
-<div
-  className={`md:hidden absolute top-full left-0 w-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border-t border-silver-200 dark:border-silver-500/20 overflow-hidden transition-all duration-300 ${
-    navExpanded
-      ? "max-h-[500px] opacity-100 pointer-events-auto"
-      : "max-h-0 opacity-0 pointer-events-none"
-  }`}
->
-  <div className="flex flex-col px-2 py-3 space-y-1">
-    {spaces.map((s) => {
-      const Icon = s.icon;
-      return (
-        <Link
-          key={s.name}
-          href={s.path}
-          className="flex items-center gap-2 px-3 py-2 rounded hover:bg-silver-100 dark:hover:bg-slate-700 transition-colors text-sm"
-          onClick={() => setNavExpanded(false)}
-        >
-          <Icon className="w-4 h-4 shrink-0" />
-          <span>{s.name}</span>
-        </Link>
-      );
-    })}
+          {/* === Mobile Dropdown - FIXED === */}
+          {navExpanded && (
+            <div
+              className="md:hidden absolute top-full left-0 w-full z-50 bg-white/95 dark:bg-slate-800/95 backdrop-blur border-t border-silver-200 dark:border-silver-500/20"
+              onClick={() => setNavExpanded(false)} // Fix: Close when clicking anywhere in dropdown
+            >
+              <div className="flex flex-col px-2 py-3 space-y-1">
+                {spaces.map((s) => {
+                  const Icon = s.icon;
+                  return (
+                    <Link
+                      key={s.name}
+                      href={s.path}
+                      className="flex items-center gap-2 px-3 py-2 rounded hover:bg-silver-100 dark:hover:bg-slate-700 transition-colors text-sm"
+                      onClick={(e) => e.stopPropagation()} // Fix: Prevent closing when clicking link
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span>{s.name}</span>
+                    </Link>
+                  );
+                })}
 
-    <div className="flex items-center justify-between pt-2 border-t border-silver-200 dark:border-silver-500/20">
-      <button
-        onClick={() => setDarkMode(!darkMode)}
-        className="px-3 py-1 rounded bg-accent text-white text-sm hover:bg-accent-hover transition-colors"
-      >
-        {darkMode ? "☀️ Light" : "🌙 Dark"}
-      </button>
-      {user ? (
-        <button onClick={handleLogout} className="hover:text-red-500 transition-colors">
-          Logout
-        </button>
-      ) : (
-        <Link
-          href="/login"
-          className="hover:underline text-sm"
-          onClick={() => setNavExpanded(false)}
-        >
-          Login
-        </Link>
-      )}
-    </div>
-  </div>
-</div>
-
+                <div className="flex items-center justify-between pt-2 border-t border-silver-200 dark:border-silver-500/20">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDarkMode(!darkMode);
+                    }}
+                    className="px-3 py-1 rounded bg-accent text-white text-sm hover:bg-accent-hover transition-colors"
+                  >
+                    {darkMode ? "☀️ Light" : "🌙 Dark"}
+                  </button>
+                  {user ? (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLogout();
+                      }} 
+                      className="px-3 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
+                    >
+                      Logout
+                    </button>
+                  ) : (
+                    <Link
+                      href="/login"
+                      className="px-3 py-1 rounded hover:bg-silver-200 dark:hover:bg-slate-700 transition-colors text-sm"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Login
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </header>
 
+        {/* ===== Main Content ===== */}
         <main className="max-w-5xl mx-auto pb-16">{children}</main>
       </body>
     </html>
