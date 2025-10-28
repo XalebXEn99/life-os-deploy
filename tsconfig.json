@@ -14,22 +14,20 @@
     "jsx": "preserve",
     "incremental": true,
     "plugins": [
-      {
-        "name": "next"
-      }
+      { "name": "next" }
     ],
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
-    "types": ["node"],
-    "ignoreDeprecations": "6.0"
+    "types": ["node"]   // ✅ ensures Node types are available
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "src/types"
+    "src/types"          // ✅ ensures your custom declarations are included
   ],
   "exclude": ["node_modules"]
 }
